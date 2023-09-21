@@ -3,28 +3,33 @@ import typing as t
 import numpy as np
 import pandas as pd
 
-class Predictor:
-    
-    def __init__(self, version: str, price_pipe: object,
-                 config: object) -> None:
-        self.version = version
-        self.price_pipe = price_pipe
-        self.config = config
+from regression_model import __version__ as _version
+from regression_model.config.core import config
+from regression_model.processing.data_manager import load_pipeline
+from regression_model.processing.validation import validate_inputs
 
-    def make_prediction(self, input_data: t.Union[pd.DataFrame, dict],) -> dict:
-        """Make a prediction using a saved model"""
-        data = pd.DataFrame(input_data)
-        validated_data, errors = validate_inputs(input_data=data)
+pipeline_file_name = f"{config.app_config.pipeline_save_file}{_version}.pkl"
+_price_pipe = load_pipeline(file_name=pipeline_file_name)
 
-        results = {"predictions": None, "version": _version, "errors": errors}
-        if not errors:
-            predictions = _price_pipe.predict(
-                X=validated_data[config.model_config.features])
-            
-            results = {
-                "predictions": [np.exp(pred) for pred in predictions],  # type: ignore
-                "version": _version,
-                "errors": errors,
-            }
 
-        return results
+def make_prediction(
+    *,
+    input_data: t.Union[pd.DataFrame, dict],
+) -> dict:
+    """Make a prediction using a saved model pipeline."""
+
+    data = pd.DataFrame(input_data)
+    validated_data, errors = validate_inputs(input_data=data)
+    results = {"predictions": None, "version": _version, "errors": errors}
+
+    if not errors:
+        predictions = _price_pipe.predict(
+            X=validated_data[config.model_config.features]
+        )
+        results = {
+            "predictions": [np.exp(pred) for pred in predictions],  # type: ignore
+            "version": _version,
+            "errors": errors,
+        }
+
+    return results
