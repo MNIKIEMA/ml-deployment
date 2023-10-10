@@ -1,11 +1,11 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ValidationError
 
 from cls_model.config.core import config
-
+from cls_model.processing.data_manager import pre_pipeline_preparation
 
 def drop_na_inputs(*, input_data: pd.DataFrame) -> pd.DataFrame:
     """Check model inputs for na values and filter."""
@@ -28,10 +28,8 @@ def validate_inputs(*, input_data: pd.DataFrame) -> Tuple[pd.DataFrame, Optional
     """Check model inputs for unprocessable values."""
 
     # convert syntax error field names (beginning with numbers)
-    input_data.rename(columns=config.model_config.variables_to_rename, inplace=True)
-    input_data["MSSubClass"] = input_data["MSSubClass"].astype("O")
-    relevant_data = input_data[config.model_config.features].copy()
-    validated_data = drop_na_inputs(input_data=relevant_data)
+    pre_processed = pre_pipeline_preparation(dataframe=input_data)
+    validated_data = pre_processed[config.model_config.features].copy()
     errors = None
 
     try:
@@ -46,12 +44,17 @@ def validate_inputs(*, input_data: pd.DataFrame) -> Tuple[pd.DataFrame, Optional
 
 
 class TitanicDataInputSchema(BaseModel):
-    age: Optional[float]
+    age: Optional[int]
     sex: Optional[str]
     cabin: Optional[str]
     embarked: Optional[str]
-    title: Optional[str]
+    ticket: Optional[int]
     fare: Optional[float]
+    name: Optional[str]
+    sibsp: Optional[int]
+    boat: Optional[Union[str, int]]
+    body: Optional[int]
+    parch: Optional[int]
 
 
 class MultipleTitanicDataInputs(BaseModel):

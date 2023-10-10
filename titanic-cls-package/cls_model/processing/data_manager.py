@@ -14,13 +14,13 @@ from cls_model.config.core import DATASET_DIR, TRAINED_MODEL_DIR, config
 def load_dataset(*, file_name: str) -> pd.DataFrame:
     dataframe = pd.read_csv(Path(f"{DATASET_DIR}/{file_name}"))
     # Cast to float
-    dataframe['fare'] = dataframe['fare'].astype('float')
-    dataframe['age'] = dataframe['age'].astype('float')
-    # extracts the title (Mr, Ms, etc) from the name variable
-    dataframe['title'] = dataframe['name'].apply(get_title)
-    # rename variables beginning with numbers to avoid syntax errors later
-    transformed = dataframe.rename(columns=config.model_config.variables_to_rename)
+    transformed = pre_pipeline_preparation(dataframe=dataframe)
     return transformed
+
+
+def _load_raw_dataset(*, file_name: str) -> pd.DataFrame:
+    dataframe = pd.read_csv(Path(f"{DATASET_DIR}/{file_name}"))
+    return dataframe
 
 
 def get_title(passenger):
@@ -35,7 +35,33 @@ def get_title(passenger):
         return 'Master'
     else:
         return 'Other'
-    
+
+
+def get_first_cabin(row: t.Any) -> t.Union[str, float]:
+    try:
+        return row.split()[0]
+    except AttributeError:
+        return np.nan
+
+
+def pre_pipeline_preparation(*, dataframe: pd.DataFrame) -> pd.DataFrame:
+    # replace question marks with NaN values
+    data = dataframe.replace("?", np.nan)
+
+    # retain only the first cabin if more than
+    # 1 are available per passenger
+    data["cabin"] = data["cabin"].apply(get_first_cabin)
+
+    data["title"] = data["name"].apply(get_title)
+
+    # cast numerical variables as floats
+    data["fare"] = data["fare"].astype("float")
+    data["age"] = data["age"].astype("float")
+
+    # drop unnecessary variables
+    data.drop(labels=config.model_config.unused_fields, axis=1, inplace=True)
+
+    return data
 
 def save_pipeline(*, pipeline_to_persist: Pipeline) -> None:
     """Persist the pipeline.
